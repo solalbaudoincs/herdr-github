@@ -956,8 +956,8 @@ func (m model) view() string {
 		if host == "" {
 			host = theForge.defaultHost
 		}
-		b.WriteString("\n  " + styleHeader.Render(theForge.name + " isn't connected") + ": no working sign-in for " + host + ".\n\n")
-		b.WriteString("  Press enter to run " + styleTabOn.Render(theForge.name + " sign-in") + " here; it opens your browser.\n")
+		b.WriteString("\n  " + styleHeader.Render(theForge.name+" isn't connected") + ": no working sign-in for " + host + ".\n\n")
+		b.WriteString("  Press enter to run " + styleTabOn.Render(theForge.name+" sign-in") + " here; it opens your browser.\n")
 		b.WriteString(styleDim.Render("  The plugin uses its CLI's sign-in and keeps no token of its own.") + "\n")
 		if m.err != "" {
 			b.WriteString("\n  " + styleErr.Render(shorten(clean(m.err, false), max(10, m.width-4))) + "\n")

@@ -50,7 +50,7 @@ type source interface {
 // off, and everything else keeps working.
 type caps struct {
 	reviewRequested bool // the Review tab: PRs waiting on your review
-	autoMerge        bool // merging once checks and reviews allow
+	autoMerge       bool // merging once checks and reviews allow
 }
 
 // githubSource talks to every configured host, one client per host.
