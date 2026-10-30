@@ -255,7 +255,10 @@ func (m model) settle() model {
 
 // loadAll asks for every tab at once, so switching tabs doesn't wait.
 func (m model) loadAll() tea.Cmd {
-	cmds := []tea.Cmd{m.loadTab(tabMine, ""), m.loadTab(tabReview, ""), m.loadAgents()}
+	cmds := []tea.Cmd{m.loadTab(tabMine, ""), m.loadAgents()}
+	if m.tabShown(tabReview) {
+		cmds = append(cmds, m.loadTab(tabReview, ""))
+	}
 	if m.repo != nil {
 		cmds = append(cmds, m.loadTab(tabRepo, ""))
 	}
