@@ -42,7 +42,13 @@ type partialError struct {
 func (e *partialError) Error() string { return e.msg }
 
 // errTruncated: a list stopped at the cap rather than page on without end.
-var errTruncated = errors.New("showing the first 200: filter, or open GitHub for the rest")
+var errTruncated error = truncatedError{}
+
+type truncatedError struct{}
+
+func (truncatedError) Error() string {
+	return "showing the first 200: filter, or open " + theForge.name + " for the rest"
+}
 
 // ── data ──────────────────────────────────────────────────────────────────────
 

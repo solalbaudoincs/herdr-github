@@ -45,9 +45,9 @@ type source interface {
 	caps() caps
 }
 
-// caps is what a source's PRs support. The demo answers for its forge too:
-// a forge to come (GitLab, say) without one of these turns its tab or key
-// off, and everything else keeps working.
+// caps is what a source's PRs support. A forge without one of these
+// (GitLab has no review-requested list) turns its tab or key off, and
+// everything else keeps working.
 type caps struct {
 	reviewRequested bool // the Review tab: PRs waiting on your review
 	autoMerge       bool // merging once checks and reviews allow
@@ -56,7 +56,7 @@ type caps struct {
 // githubSource talks to every configured host, one client per host.
 type githubSource struct {
 	cfg     config
-	repo    *repoRef // the repo the picker was opened in, if it's a GitHub one
+	repo    *repoRef // the repo the picker was opened in, if it's on this forge
 	mu      sync.Mutex
 	clients map[string]*ghClient
 }

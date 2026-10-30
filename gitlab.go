@@ -19,8 +19,7 @@ import (
 )
 
 // GitLab, over its REST API (v4). Its merge requests are mapped onto the
-// plugin's pull requests (pullRequest, prDetail, prStatus), so the rest of
-// the plugin needn't know which forge it's showing.
+// plugin's pull requests (pullRequest, prDetail, prStatus).
 
 var gitlabForge = forge{
 	name:        "GitLab",

@@ -8,13 +8,12 @@ import (
 	"strings"
 )
 
-// A forge is a code-hosting service: GitHub here, and the shape is ready for
-// a sibling (a herdr-gitlab, say) to bring its own vocabulary. The client
-// (github.go) speaks the service's API; the forge holds what the rest of the
-// plugin needs to know about it: how to authenticate, how a PR's URL and
-// fork refs are spelled, how clones and sign-ins happen, and what its merge
-// methods are called. This binary runs as one forge; `theForge` is it, a
-// variable so tests can stand another in.
+// A forge is a code-hosting service: GitHub or GitLab. Its client
+// (github.go, gitlab.go) speaks the service's API; the forge holds what the
+// rest of the plugin needs to know about it: how to authenticate, how a PR's
+// URL and fork refs are spelled, how clones and sign-ins happen, and what
+// its merge methods are called. A process runs as one forge, chosen by the
+// config's "forge"; `theForge` is it.
 
 type forge struct {
 	// name is the service's name, as errors and notices spell it ("GitHub").
@@ -93,8 +92,8 @@ func splitRepoPath(path string, nested bool) (owner, name string, ok bool) {
 	return owner, name, true
 }
 
-// theForge is the forge this process serves. Both real sources and the demo
-// run on it (the demo impersonates GitHub).
+// theForge is the forge this process serves (useForge). The demo always
+// runs on GitHub's, which it impersonates.
 var theForge = githubForge
 
 // isDefaultHost says whether host is the forge's default host, and so needn't
