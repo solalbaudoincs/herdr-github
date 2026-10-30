@@ -82,9 +82,7 @@ var tabQueries = map[tab]string{
 }
 
 // list runs the tab's search. The repo tab pages through one search; Mine
-// and Review search every host at once, and their cursor holds each host's
-// place (JSON: host → cursor). A host you're signed out of is skipped while
-// another answers; with none answering, the error stands.
+// and Review search every host at once (fanOut).
 func (s *githubSource) list(ctx context.Context, t tab, cursor string) (page, error) {
 	size := firstPage
 	if cursor != "" {
@@ -97,10 +95,18 @@ func (s *githubSource) list(ctx context.Context, t tab, cursor string) (page, er
 		prs, next, err := s.client(s.repo.Host).searchPage(ctx, "is:pr is:open repo:"+s.repo.String()+" sort:updated-desc", size, cursor)
 		return page{prs, next}, err
 	}
+	return fanOut(s.cfg.Hosts, t, cursor, func(host, after string) ([]pullRequest, string, error) {
+		return s.client(host).searchPage(ctx, tabQueries[t], size, after)
+	})
+}
 
+// fanOut lists a tab on every host at once. Its cursor holds each host's
+// place (JSON: host → that host's cursor). A host you're signed out of is
+// skipped while another answers; with none answering, the error stands.
+func fanOut(hostList []string, t tab, cursor string, pageOf func(host, after string) ([]pullRequest, string, error)) (page, error) {
 	hosts := map[string]string{} // host → where to continue
 	if cursor == "" {
-		for _, h := range s.cfg.Hosts {
+		for _, h := range hostList {
 			hosts[h] = ""
 		}
 	} else if err := json.Unmarshal([]byte(cursor), &hosts); err != nil {
@@ -115,7 +121,7 @@ func (s *githubSource) list(ctx context.Context, t tab, cursor string) (page, er
 	results := make(chan result, len(hosts))
 	for h, after := range hosts {
 		go func() {
-			prs, next, err := s.client(h).searchPage(ctx, tabQueries[t], size, after)
+			prs, next, err := pageOf(h, after)
 			results <- result{h, prs, next, err}
 		}()
 	}
@@ -199,26 +205,33 @@ func isPartial(err error) bool {
 	return errors.As(err, &p)
 }
 
-// repos pages through each host in turn. The cursor is "<host index>:<GitHub's
-// cursor>". A host that fails is skipped, unless it's the only one.
+// repos pages through each host in turn (pageHosts).
 func (s *githubSource) repos(ctx context.Context, cursor string) ([]repoInfo, string, error) {
+	return pageHosts(s.cfg.Hosts, cursor, func(host, after string) ([]repoInfo, string, error) {
+		return s.client(host).viewerReposPage(ctx, after)
+	})
+}
+
+// pageHosts pages through each host in turn, its cursor "<host index>:<the
+// host's cursor>". A host that fails is skipped, unless it's the only one.
+func pageHosts(hosts []string, cursor string, pageOf func(host, after string) ([]repoInfo, string, error)) ([]repoInfo, string, error) {
 	i, after := 0, ""
 	if cursor != "" {
 		n, rest, _ := strings.Cut(cursor, ":")
 		i, _ = strconv.Atoi(n)
 		after = rest
 	}
-	if i >= len(s.cfg.Hosts) {
+	if i >= len(hosts) {
 		return nil, "", nil
 	}
-	rs, next, err := s.client(s.cfg.Hosts[i]).viewerReposPage(ctx, after)
+	rs, next, err := pageOf(hosts[i], after)
 	switch {
 	case next != "":
 		next = strconv.Itoa(i) + ":" + next
-	case i+1 < len(s.cfg.Hosts):
+	case i+1 < len(hosts):
 		next = strconv.Itoa(i+1) + ":"
 	}
-	if err != nil && len(s.cfg.Hosts) > 1 {
+	if err != nil && len(hosts) > 1 {
 		return rs, next, nil
 	}
 	return rs, next, err

@@ -111,7 +111,7 @@ func (pr pullRequest) checks() string {
 }
 
 func (pr pullRequest) repo() repoRef {
-	owner, name, _ := strings.Cut(pr.Repository.NameWithOwner, "/")
+	owner, name, _ := splitRepoPath(pr.Repository.NameWithOwner, true)
 	return repoRef{Host: pr.Host, Owner: owner, Name: name}
 }
 
@@ -795,6 +795,16 @@ func pickPR(nodes []prStatus, owner string) (prStatus, bool) {
 		return fit[0], true
 	}
 	return prStatus{}, false
+}
+
+func (c *ghClient) viewer(ctx context.Context) (string, error) {
+	var res struct {
+		Viewer struct {
+			Login string `json:"login"`
+		} `json:"viewer"`
+	}
+	err := c.graphql(ctx, `query { viewer { login } }`, nil, &res)
+	return res.Viewer.Login, err
 }
 
 // ── your repos, for the repo picker ───────────────────────────────────────────

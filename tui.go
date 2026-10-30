@@ -520,9 +520,12 @@ func (m model) refreshAll() (model, tea.Cmd) {
 	m.gen++
 	m.prs, m.loaded, m.stale, m.paging, m.tabErr = map[tab][]pullRequest{}, map[tab]bool{}, map[tab]bool{}, map[tab]bool{}, map[tab]string{}
 	m.mode, m.err = modeLoading, ""
-	if gs, ok := m.client.(*githubSource); ok {
-		// A new sign-in means new tokens: start the clients afresh.
-		m.client = newGitHubSource(m.cfg, gs.repo)
+	// A new sign-in means new tokens: start the clients afresh.
+	switch c := m.client.(type) {
+	case *githubSource:
+		m.client = theForge.newSource(m.cfg, c.repo)
+	case *gitlabSource:
+		m.client = theForge.newSource(m.cfg, c.repo)
 	}
 	m = m.settle()
 	return m, tea.Batch(m.spin.Tick, m.loadAll())
@@ -1617,6 +1620,9 @@ func runPicker(ctx context.Context, cfg config, demo bool) error {
 	var client source
 	var repo *repoRef
 	if demo {
+		// The demo impersonates GitHub, whichever forge is configured.
+		useForge(githubForge)
+		cfg.Hosts = []string{githubForge.defaultHost}
 		d := newDemoSource()
 		home := d.homeRepo()
 		client, repo = d, &home
@@ -1629,12 +1635,12 @@ func runPicker(ctx context.Context, cfg config, demo bool) error {
 				}
 			}
 		}
-		client = newGitHubSource(cfg, repo)
+		client = theForge.newSource(cfg, repo)
 	}
 	m := newModel(ctx, cfg, client, invoked, repo)
 	if !demo {
 		// Open on the tab you were last on, showing last time's lists.
-		if t, ok := lastTab(); ok {
+		if t, ok := lastTab(); ok && m.tabShown(t) {
 			m.tab = t
 		}
 		m = m.useCache(readListCache(repo))

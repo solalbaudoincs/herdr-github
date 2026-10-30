@@ -5,10 +5,14 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
 type config struct {
+	// Forge is the service the plugin serves: "github" (the default) or
+	// "gitlab".
+	Forge string `json:"forge"`
 	// Hosts are the GitHub hosts whose pull requests the Mine and Review
 	// tabs list: github.com, and any GitHub Enterprise host gh is signed in to.
 	Hosts []string `json:"hosts"`
@@ -90,12 +94,16 @@ func readConfig() (config, error) {
 			return cfg, errors.New("config.json: " + err.Error())
 		}
 	}
+	if _, ok := forgeNamed(cfg.Forge); !ok {
+		return config{}, errors.New(`config.json: "forge" is "github" or "gitlab", not ` + strconv.Quote(cfg.Forge))
+	}
 	return cfg, nil
 }
 
 func withDefaults(cfg config) config {
+	f := cfg.forge()
 	if len(cfg.Hosts) == 0 {
-		cfg.Hosts = []string{"github.com"}
+		cfg.Hosts = []string{f.defaultHost}
 	}
 	for i, h := range cfg.Hosts {
 		cfg.Hosts[i] = strings.ToLower(strings.TrimSpace(h))
@@ -105,7 +113,7 @@ func withDefaults(cfg config) config {
 	}
 	cfg.CloneRoot = expandHome(cfg.CloneRoot)
 	if cfg.StartPrompt == "" {
-		cfg.StartPrompt = "Pull request {url} is checked out here. Read it with `gh pr view {number} --comments`, look at any failing checks, and tell me what's left to do."
+		cfg.StartPrompt = f.startPrompt
 	}
 	if cfg.AgentWaitSeconds <= 0 {
 		cfg.AgentWaitSeconds = 90
@@ -119,6 +127,15 @@ func withDefaults(cfg config) config {
 	}
 	cfg.Repos = repos
 	return cfg
+}
+
+// forge is the forge the config names, GitHub when it names none it knows.
+func (c config) forge() forge {
+	f, ok := forgeNamed(c.Forge)
+	if !ok {
+		return githubForge
+	}
+	return f
 }
 
 // knownHost says whether h is one of the configured GitHub hosts.

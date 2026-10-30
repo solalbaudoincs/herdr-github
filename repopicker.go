@@ -125,7 +125,7 @@ func (m model) takeRemoteRepos(msg remoteReposMsg) (model, tea.Cmd) {
 		m.remoteLoading, m.remoteLoaded = false, true
 		// Keep last time's list; say so only if there's none.
 		if len(m.repoRemote) == 0 && m.menu != nil && m.menu.id == "repos" {
-			m.err = "Couldn't list your GitHub repos: " + msg.err.Error()
+			m.err = "Couldn't list your " + theForge.name + " repos: " + msg.err.Error()
 		}
 		return m.refreshRepoMenu(), nil
 	}
@@ -162,7 +162,7 @@ type repoEntry struct {
 func (m model) repoMenu() *menu {
 	title := "Pull requests of which repo?"
 	if !m.remoteLoaded && len(m.repoRemote) == 0 {
-		title += " (loading yours from GitHub…)"
+		title += " (loading yours from " + theForge.name + "…)"
 	}
 	mn := &menu{id: "repos", title: title, filterable: true}
 
@@ -294,22 +294,25 @@ var repoNamePart = regexp.MustCompile(`^[A-Za-z0-9_.-]+$`)
 // typedRepo reads "owner/repo" (on host) or "host/owner/repo".
 func typedRepo(q, host string) (repoRef, bool) {
 	parts := strings.Split(q, "/")
-	if len(parts) == 3 && strings.Contains(parts[0], ".") {
+	if len(parts) >= 3 && strings.Contains(parts[0], ".") {
 		host, parts = strings.ToLower(parts[0]), parts[1:]
 	}
-	if len(parts) != 2 || !repoNamePart.MatchString(parts[0]) || !repoNamePart.MatchString(parts[1]) {
+	if len(parts) < 2 || (len(parts) > 2 && !theForge.nestedPaths) {
 		return repoRef{}, false
 	}
-	return repoRef{Host: host, Owner: parts[0], Name: parts[1]}, true
+	for _, p := range parts {
+		if !repoNamePart.MatchString(p) {
+			return repoRef{}, false
+		}
+	}
+	return repoRef{Host: host, Owner: strings.Join(parts[:len(parts)-1], "/"), Name: parts[len(parts)-1]}, true
 }
 
 func parseRepoKey(k string) (repoRef, bool) {
-	parts := strings.Split(k, "/")
-	if len(parts) != 3 {
-		return repoRef{}, false
-	}
-	r := repoRef{Host: parts[0], Owner: parts[1], Name: parts[2]}
-	return r, r.valid()
+	host, path, _ := strings.Cut(k, "/")
+	owner, name, ok := splitRepoPath(path, theForge.nestedPaths)
+	r := repoRef{Host: host, Owner: owner, Name: name}
+	return r, ok && r.valid()
 }
 
 // openRepoPicker opens the picker once the local choices are gathered; your
@@ -328,8 +331,8 @@ func (m model) openRepoPicker() (tea.Model, tea.Cmd) {
 func (m model) switchRepo(r repoRef) (tea.Model, tea.Cmd) {
 	m.repo = &r
 	switch c := m.client.(type) {
-	case *githubSource:
-		m.client = newGitHubSource(m.cfg, &r)
+	case *githubSource, *gitlabSource:
+		m.client = theForge.newSource(m.cfg, &r)
 	case *demoSource:
 		c.setHome(r)
 	}

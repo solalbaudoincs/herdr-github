@@ -510,6 +510,7 @@ Everything is optional. Put `config.json` in the plugin's config directory
 
 | key                     | default          | what it does |
 |-------------------------|------------------|--------------|
+| `forge`                 | `github`         | `gitlab` serves GitLab merge requests instead (see [GitLab](#gitlab)). |
 | `hosts`                 | `["github.com"]` | Hosts the Mine and Review tabs search, e.g. add your GitHub Enterprise host. Sign in to each with `gh auth login --hostname …`. |
 | `repos`                 | none             | `"owner/repo"` (or `"host/owner/repo"`) → checkout, for one the plugin can't find by its remotes (an SSH host alias, say). |
 | `clone_root`            | `~/code`         | Where a repo with no checkout is cloned, as `<clone_root>/<owner>/<repo>`, after asking. |
@@ -521,6 +522,20 @@ Everything is optional. Put `config.json` in the plugin's config directory
 | `theme`                 | asks the terminal | `dark` or `light`, if the automatic choice is wrong. |
 
 A copy is in [`config.example.json`](config.example.json).
+
+### GitLab
+
+With `"forge": "gitlab"` the plugin lists GitLab merge requests (gitlab.com,
+or self-managed hosts under `hosts`), through GitLab's REST API. It signs in
+the way `glab` does: `GITLAB_TOKEN` (or `GITLAB_ACCESS_TOKEN`, `OAUTH_TOKEN`),
+else the token `glab auth login` stored. Differences from GitHub:
+
+- No Review tab: GitLab has no list of the merge requests waiting on your
+  review.
+- Merge methods are merge and squash, as the project's squash setting
+  allows; a draft is a `Draft:` title prefix, which `d` adds or removes.
+- Checks are the head pipeline's jobs; one allowed to fail isn't required.
+- The demo stays on GitHub.
 
 ### Colours
 

@@ -46,6 +46,7 @@ func run(ctx context.Context, args []string) error {
 		return nil
 	}
 	cfg, cfgErr := loadConfig()
+	useForge(cfg.forge())
 	if cfgErr != nil {
 		switch {
 		case args[0] == "tick":
@@ -159,16 +160,12 @@ func status(ctx context.Context, cfg config) error {
 			fmt.Printf("%s: %v\n", h, err)
 			continue
 		}
-		var res struct {
-			Viewer struct {
-				Login string `json:"login"`
-			} `json:"viewer"`
-		}
-		if err := newClient(h).graphql(ctx, `query { viewer { login } }`, nil, &res); err != nil {
-			fmt.Printf("%s: gh has a token, but GitHub refused it: %v\n", h, err)
+		login, err := theForge.api(h).viewer(ctx)
+		if err != nil {
+			fmt.Printf("%s: %s has a token, but %s refused it: %v\n", h, theForge.cliName, theForge.name, err)
 			continue
 		}
-		fmt.Printf("%s: signed in as %s (through gh)\n", h, res.Viewer.Login)
+		fmt.Printf("%s: signed in as %s (through %s)\n", h, login, theForge.cliName)
 	}
 	fmt.Println("Labels:", map[bool]string{true: "on", false: "off"}[cfg.labelsOn()], "· config:", strings.TrimSpace(configDir()+"/config.json"))
 	return nil
