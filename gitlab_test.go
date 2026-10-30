@@ -437,3 +437,19 @@ func TestConfigChoosesTheForge(t *testing.T) {
 		t.Fatal("an unknown forge is accepted")
 	}
 }
+
+// loadAll skips a hidden tab: with the Review tab hidden, its load isn't
+// fired, so no reply to it can flip the popup after the fact.
+func TestNoReviewRequestedSkipsTheLoad(t *testing.T) {
+	for _, c := range []caps{{autoMerge: true}, {reviewRequested: true, autoMerge: true}} {
+		m := cappedModel(t, c)
+		m.ctx = context.Background()
+		m = drive(m, m.loadAll())
+		if m.loaded[tabReview] && !c.reviewRequested {
+			t.Fatalf("loadAll loaded the hidden Review tab: %v", c)
+		}
+		if c.reviewRequested && !m.loaded[tabReview] {
+			t.Fatalf("a forge with the Review tab did not load it: %v", c)
+		}
+	}
+}
