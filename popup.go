@@ -22,7 +22,7 @@ func openPicker(env map[string]string) error {
 	err := openPopup("picker", "85%", "80%", env)
 	if isHerdrCode(err, "ui_busy") {
 		if !endOwnPopup() {
-			notify("GitHub", "Another popup is open: close it (esc) and try again.")
+			notify("Another popup is open: close it (esc) and try again.")
 			return err
 		}
 		err = openPopup("picker", "85%", "80%", env)

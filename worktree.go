@@ -353,7 +353,7 @@ func kickoff(cfg config, workspaceID, rootPaneID, text string) error {
 			case isHerdrCode(err, "agent_prompt_stalled"), isHerdrCode(err, "timeout"):
 				// It may still be sitting in the input box: resending could
 				// duplicate it, so stop here and say so.
-				notify("GitHub", "Typed the prompt but the agent didn't start. Press enter in the new space.")
+				notify("Typed the prompt but the agent didn't start. Press enter in the new space.")
 				return err
 			case isHerdrCode(err, "agent_blocked"):
 				// A dialog came up: wait for it to be answered.
@@ -363,7 +363,7 @@ func kickoff(cfg config, workspaceID, rootPaneID, text string) error {
 		}
 		time.Sleep(time.Second)
 	}
-	notify("GitHub", "No agent came up in the new space, so the PR prompt wasn't sent.")
+	notify("No agent came up in the new space, so the PR prompt wasn't sent.")
 	return errors.New("no ready agent before the deadline")
 }
 

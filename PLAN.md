@@ -57,10 +57,20 @@ type caps struct { reviewRequested, autoMerge bool }
 - Tests: existing suite untouched except where a test constructs a hard-coded
   path that now goes through the descriptor — assertions stay equivalent.
 
+## Built (updated as implemented)
+
+Also moved behind the forge: the signed-out screen's wording
+(`name`/`defaultHost`), the login command (`loginCmd`), toast titles
+(`notify` takes only a body, titled with the forge's name), and
+`errSignedOut`'s wording. One test adapted (TestSignedOutScreen) per the
+brief: assertion now constructs via `theForge.name`, equivalent meaning.
+New tests: forge_test.go (URL path parsing, default host), caps_test.go
+(Review tab hidden, merge key hidden).
+
 ## Steps
 
-1. `forge.go` + `forge_test.go`; move `ghToken`, endpoint-agnostic helpers.
-2. Thread the descriptor through agents/worktree/repos/detail/demo/main.
-3. Capability flags + TUI consultation.
-4. `go build ./... && go vet ./... && go test ./...`, deslop + no-comments,
-   push, draft PR.
+1. ✅ `forge.go` + `forge_test.go`.
+2. ✅ Descriptor threaded through agents/worktree/repos/detail/demo/tui/
+   repopicker/main/popup/links (notify, wording).
+3. ✅ Capability flags + TUI consultation (tabBar, cycleTab, merge key).
+4. Full checks, deslop + no-comments, push, draft PR.

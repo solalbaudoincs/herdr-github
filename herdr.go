@@ -84,8 +84,9 @@ func isHerdrCode(err error, code string) bool {
 	return errors.As(err, &he) && he.Code == code
 }
 
-func notify(title, body string) {
-	_ = herdrCall("notification.show", map[string]any{"title": title, "body": body}, nil)
+// notify shows a toast titled with the forge's name.
+func notify(body string) {
+	_ = herdrCall("notification.show", map[string]any{"title": theForge.name, "body": body}, nil)
 }
 
 type paneInfo struct {

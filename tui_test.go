@@ -442,7 +442,7 @@ func TestSignedOutScreen(t *testing.T) {
 	m := demoModel(t, tabMine)
 	next, _ := m.Update(listMsg{tab: tabMine, err: &signedOutError{"github.com"}, gen: m.gen})
 	m = next.(model)
-	if m.mode != modeSignedOut || !strings.Contains(plain(m), "gh auth login") {
+	if m.mode != modeSignedOut || !strings.Contains(plain(m), theForge.name+" sign-in") {
 		t.Fatalf("signed out:\n%s", plain(m))
 	}
 	if _, cmd := m.Update(keyMsg("esc")); !quits(cmd) {

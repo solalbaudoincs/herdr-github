@@ -92,7 +92,7 @@ func runHandoff(arg string) error {
 		}
 	}
 	if err != nil {
-		notify("GitHub", "Couldn't open "+p.PluginID+": "+err.Error())
+		notify("Couldn't open "+p.PluginID+": "+err.Error())
 	}
 	return err
 }

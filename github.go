@@ -18,8 +18,9 @@ import (
 
 // ── errors ────────────────────────────────────────────────────────────────────
 
-// errSignedOut: gh has no working token for a host. signedOutError says which.
-var errSignedOut = errors.New("not signed in to GitHub")
+// errSignedOut: the forge's CLI has no working token for a host.
+// signedOutError says which.
+var errSignedOut = errors.New("not signed in to " + theForge.name)
 
 type signedOutError struct{ Host string }
 

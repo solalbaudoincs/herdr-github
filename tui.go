@@ -476,7 +476,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case loginDoneMsg:
 		if msg.err != nil {
-			m.err = "gh auth login: " + msg.err.Error()
+			m.err = theForge.name + " sign-in: " + msg.err.Error()
 		}
 		return m.refreshAll()
 
@@ -730,8 +730,8 @@ func (m model) reloadLists() (model, tea.Cmd) {
 	return m, tea.Batch(m.spin.Tick, m.loadAll())
 }
 
-// login runs `gh auth login` in the popup itself: it's a terminal, and gh's
-// prompts and browser hand-off work as they would anywhere else.
+// login runs the forge's sign-in in the popup itself: it's a terminal, and
+// the CLI's prompts and browser hand-off work as they would anywhere else.
 func (m model) login() tea.Cmd {
 	host := m.host
 	if host == "" {
@@ -956,9 +956,9 @@ func (m model) view() string {
 		if host == "" {
 			host = theForge.defaultHost
 		}
-		b.WriteString("\n  " + styleHeader.Render(theForge.name + " isn't connected") + ": gh has no working sign-in for " + host + ".\n\n")
-		b.WriteString("  Press enter to run " + styleTabOn.Render("gh auth login") + " here; it opens your browser.\n")
-		b.WriteString(styleDim.Render("  The plugin uses gh's token and keeps none of its own.") + "\n")
+		b.WriteString("\n  " + styleHeader.Render(theForge.name + " isn't connected") + ": no working sign-in for " + host + ".\n\n")
+		b.WriteString("  Press enter to run " + styleTabOn.Render(theForge.name + " sign-in") + " here; it opens your browser.\n")
+		b.WriteString(styleDim.Render("  The plugin uses its CLI's sign-in and keeps no token of its own.") + "\n")
 		if m.err != "" {
 			b.WriteString("\n  " + styleErr.Render(shorten(clean(m.err, false), max(10, m.width-4))) + "\n")
 		}
