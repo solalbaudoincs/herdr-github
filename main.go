@@ -46,6 +46,7 @@ func run(ctx context.Context, args []string) error {
 		return nil
 	}
 	cfg, cfgErr := loadConfig()
+	useForge(cfg.forge())
 	if cfgErr != nil {
 		switch {
 		case args[0] == "tick":
@@ -53,7 +54,7 @@ func run(ctx context.Context, args []string) error {
 			// plugin log, and go on with the defaults.
 			fmt.Fprintln(os.Stderr, "herdr-github: ignoring", cfgErr)
 		case args[0] == "action":
-			notify("GitHub", cfgErr.Error())
+			notify(cfgErr.Error())
 			return cfgErr
 		default:
 			return cfgErr
@@ -109,7 +110,7 @@ func runAction(ctx context.Context, cfg config, name string) error {
 			cwd = inv.FocusedPaneCwd
 		}
 		if err := openPicker(map[string]string{"HERDR_GITHUB_CWD": cwd}); err != nil {
-			notify("GitHub", "Couldn't open the picker: "+err.Error())
+			notify("Couldn't open the picker: " + err.Error())
 			return err
 		}
 		return nil
@@ -124,13 +125,13 @@ func runAction(ctx context.Context, cfg config, name string) error {
 		}
 		env := map[string]string{"HERDR_GITHUB_CWD": cwd, "HERDR_GITHUB_PANE": inv.FocusedPaneID, "HERDR_GITHUB_SPACE": inv.WorkspaceID}
 		if err := openPicker(env); err != nil {
-			notify("GitHub", "Couldn't open the pull request: "+err.Error())
+			notify("Couldn't open the pull request: " + err.Error())
 			return err
 		}
 		return nil
 	case "demo":
 		if err := openPicker(map[string]string{"HERDR_GITHUB_DEMO": "1"}); err != nil {
-			notify("GitHub", "Couldn't open the demo: "+err.Error())
+			notify("Couldn't open the demo: " + err.Error())
 			return err
 		}
 		return nil
@@ -138,13 +139,13 @@ func runAction(ctx context.Context, cfg config, name string) error {
 		err := tick(ctx, cfg, true)
 		switch {
 		case !cfg.labelsOn():
-			notify("GitHub", "Labels are off (\"labels\": false in config.json), so they were cleared.")
+			notify("Labels are off (\"labels\": false in config.json), so they were cleared.")
 		case errors.Is(err, errSignedOut):
-			notify("GitHub", err.Error())
+			notify(err.Error())
 		case err != nil:
-			notify("GitHub", "Couldn't refresh every label: "+err.Error())
+			notify("Couldn't refresh every label: " + err.Error())
 		default:
-			notify("GitHub", "PR labels refreshed.")
+			notify("PR labels refreshed.")
 		}
 		return nil
 	}
@@ -159,16 +160,12 @@ func status(ctx context.Context, cfg config) error {
 			fmt.Printf("%s: %v\n", h, err)
 			continue
 		}
-		var res struct {
-			Viewer struct {
-				Login string `json:"login"`
-			} `json:"viewer"`
-		}
-		if err := newClient(h).graphql(ctx, `query { viewer { login } }`, nil, &res); err != nil {
-			fmt.Printf("%s: gh has a token, but GitHub refused it: %v\n", h, err)
+		login, err := theForge.api(h).viewer(ctx)
+		if err != nil {
+			fmt.Printf("%s: %s has a token, but %s refused it: %v\n", h, theForge.cliName, theForge.name, err)
 			continue
 		}
-		fmt.Printf("%s: signed in as %s (through gh)\n", h, res.Viewer.Login)
+		fmt.Printf("%s: signed in as %s (through %s)\n", h, login, theForge.cliName)
 	}
 	fmt.Println("Labels:", map[bool]string{true: "on", false: "off"}[cfg.labelsOn()], "· config:", strings.TrimSpace(configDir()+"/config.json"))
 	return nil

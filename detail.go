@@ -154,6 +154,9 @@ func (m model) handleDetailKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	case "d":
 		return m.toggleDraft()
 	case "m":
+		if !m.client.caps().autoMerge {
+			return m, nil
+		}
 		return m.mergeMenu()
 	case "ctrl+r":
 		m.err, m.flash = "", ""
@@ -193,8 +196,9 @@ func (m model) toggleDraft() (tea.Model, tea.Cmd) {
 
 // ── merging ───────────────────────────────────────────────────────────────────
 
-var methodNames = map[string]string{"MERGE": "Create a merge commit", "SQUASH": "Squash and merge", "REBASE": "Rebase and merge"}
-var methodVerbs = map[string]string{"MERGE": "Merge", "SQUASH": "Squash-merge", "REBASE": "Rebase-merge"}
+// The merge methods' names and verbs are the forge's vocabulary.
+func methodNames() map[string]string { return theForge.methodNames }
+func methodVerbs() map[string]string { return theForge.methodVerbs }
 
 // mergeableNow says whether GitHub would merge it right now.
 func mergeableNow(d *prDetail) bool {
@@ -243,7 +247,7 @@ func readiness(d *prDetail) (text string, style lipgloss.Style) {
 			s = "Blocked by the branch's rules"
 		}
 	default:
-		s, style = "GitHub is still working out whether it can merge (ctrl+r)", styleDim
+		s, style = theForge.name+" is still working out whether it can merge (ctrl+r)", styleDim
 	}
 	if !d.ViewerCanMerge {
 		s += " · you can't merge in this repo"
@@ -308,11 +312,11 @@ func (m model) mergeMenu() (tea.Model, tea.Cmd) {
 	for _, meth := range methods {
 		meth := meth
 		if now {
-			mn.items = append(mn.items, menuItem{label: methodNames[meth], run: func(m model) (tea.Model, tea.Cmd) {
+			mn.items = append(mn.items, menuItem{label: methodNames()[meth], run: func(m model) (tea.Model, tea.Cmd) {
 				return m.openMenu(confirmMerge(d, meth, false)), nil
 			}})
 		} else if d.RepoSettings.AutoMergeAllowed && d.AutoMergeRequest == nil && d.Mergeable != "CONFLICTING" {
-			mn.items = append(mn.items, menuItem{label: "Auto-merge when ready: " + strings.ToLower(methodNames[meth]), run: func(m model) (tea.Model, tea.Cmd) {
+			mn.items = append(mn.items, menuItem{label: "Auto-merge when ready: " + strings.ToLower(methodNames()[meth]), run: func(m model) (tea.Model, tea.Cmd) {
 				return m.openMenu(confirmMerge(d, meth, true)), nil
 			}})
 		}
@@ -347,10 +351,10 @@ func orderMethods(methods []string, preferred string) []string {
 
 // confirmMerge asks once more, naming exactly what's about to happen.
 func confirmMerge(d *prDetail, method string, auto bool) *menu {
-	title := fmt.Sprintf("%s #%d into %s now?", methodVerbs[method], d.Number, d.BaseRefName)
-	yes := methodVerbs[method] + " it"
+	title := fmt.Sprintf("%s #%d into %s now?", methodVerbs()[method], d.Number, d.BaseRefName)
+	yes := methodVerbs()[method] + " it"
 	if auto {
-		title = fmt.Sprintf("Turn on auto-merge (%s) for #%d? It merges once checks and reviews allow.", strings.ToLower(methodNames[method]), d.Number)
+		title = fmt.Sprintf("Turn on auto-merge (%s) for #%d? It merges once checks and reviews allow.", strings.ToLower(methodNames()[method]), d.Number)
 		yes = "Turn on auto-merge"
 	}
 	return &menu{title: title, cursor: 1, noDigits: true, items: []menuItem{
@@ -432,7 +436,7 @@ func (m model) cleanupMenu(d *prDetail) *menu {
 		mn.items = append(mn.items, run("Delete the branch and remove the worktree", true, true))
 	}
 	if canDelete {
-		mn.items = append(mn.items, run("Delete the branch "+d.HeadRefName+" on GitHub", true, false))
+		mn.items = append(mn.items, run("Delete the branch "+d.HeadRefName+" on "+theForge.name, true, false))
 	}
 	if hasTree {
 		mn.items = append(mn.items, run("Remove the worktree (and close its space)", false, true))
@@ -451,7 +455,7 @@ func (m *model) openURL(u string) {
 		return
 	}
 	if !m.isGitHubURL(u) {
-		m.err = "Not opening " + u + ": not a link to your GitHub"
+		m.err = "Not opening " + u + ": not a link to your " + theForge.name
 		return
 	}
 	// A browser here wouldn't be in front of you (over SSH), or there's none
@@ -773,7 +777,9 @@ func (m model) detailFooter() []hint {
 		} else {
 			hs = append(hs, hint{"d draft", "d", hintAct})
 		}
-		hs = append(hs, hint{"m merge", "m", hintAct})
+		if m.client.caps().autoMerge {
+			hs = append(hs, hint{"m merge", "m", hintAct})
+		}
 	}
 	hs = append(hs, hint{"o open", "o", hintView}, hint{"y copy url", "y", hintView})
 	if m.direct {

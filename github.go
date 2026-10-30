@@ -18,13 +18,14 @@ import (
 
 // ── errors ────────────────────────────────────────────────────────────────────
 
-// errSignedOut: gh has no working token for a host. signedOutError says which.
-var errSignedOut = errors.New("not signed in to GitHub")
+// errSignedOut: the forge's CLI has no working token for a host.
+// signedOutError says which.
+var errSignedOut = errors.New("not signed in to " + theForge.name)
 
 type signedOutError struct{ Host string }
 
 func (e *signedOutError) Error() string {
-	return "not signed in to " + e.Host + ": run `gh auth login --hostname " + e.Host + "`"
+	return "not signed in to " + e.Host + ": run `" + theForge.loginText + " --hostname " + e.Host + "`"
 }
 func (e *signedOutError) Unwrap() error { return errSignedOut }
 
@@ -41,7 +42,13 @@ type partialError struct {
 func (e *partialError) Error() string { return e.msg }
 
 // errTruncated: a list stopped at the cap rather than page on without end.
-var errTruncated = errors.New("showing the first 200: filter, or open GitHub for the rest")
+var errTruncated error = truncatedError{}
+
+type truncatedError struct{}
+
+func (truncatedError) Error() string {
+	return "showing the first 200: filter, or open " + theForge.name + " for the rest"
+}
 
 // ── data ──────────────────────────────────────────────────────────────────────
 
@@ -110,7 +117,7 @@ func (pr pullRequest) checks() string {
 }
 
 func (pr pullRequest) repo() repoRef {
-	owner, name, _ := strings.Cut(pr.Repository.NameWithOwner, "/")
+	owner, name, _ := splitRepoPath(pr.Repository.NameWithOwner, true)
 	return repoRef{Host: pr.Host, Owner: owner, Name: name}
 }
 
@@ -259,9 +266,9 @@ func (s repoSettings) methods() []string {
 
 // ── client ────────────────────────────────────────────────────────────────────
 
-// tokenFn finds the token for a host; a seam for tests. gh's own environment
-// variables win, as they do for gh.
-var tokenFn = ghToken
+// tokenFn finds the token for a host; a seam for tests. The forge's own
+// environment variables win, as they do for its CLI.
+var tokenFn = theForge.token
 
 func ghToken(ctx context.Context, host string) (string, error) {
 	vars := []string{"GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"}
@@ -794,6 +801,16 @@ func pickPR(nodes []prStatus, owner string) (prStatus, bool) {
 		return fit[0], true
 	}
 	return prStatus{}, false
+}
+
+func (c *ghClient) viewer(ctx context.Context) (string, error) {
+	var res struct {
+		Viewer struct {
+			Login string `json:"login"`
+		} `json:"viewer"`
+	}
+	err := c.graphql(ctx, `query { viewer { login } }`, nil, &res)
+	return res.Viewer.Login, err
 }
 
 // ── your repos, for the repo picker ───────────────────────────────────────────

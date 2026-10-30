@@ -49,8 +49,8 @@ func parseRemote(raw string) (repoRef, bool) {
 		return repoRef{}, false
 	}
 	path = strings.TrimSuffix(strings.Trim(path, "/"), ".git")
-	owner, name, ok := strings.Cut(path, "/")
-	if !ok || owner == "" || name == "" || strings.Contains(name, "/") {
+	owner, name, ok := splitRepoPath(path, theForge.nestedPaths)
+	if !ok {
 		return repoRef{}, false
 	}
 	return repoRef{Host: strings.ToLower(host), Owner: owner, Name: name}, true
@@ -137,15 +137,15 @@ func remoteFor(ctx context.Context, dir string, r repoRef) (remote, bool) {
 // remoteForCheckout is remoteFor for a checkout already chosen (mapped in
 // the config, say), where a remote may name the host by an SSH alias
 // ("git@work-github:o/r"): then owner and name are enough. Not for a remote
-// on another GitHub you use: o/r there is a different repo.
+// on another host of this forge you use: o/r there is a different repo.
 func remoteForCheckout(ctx context.Context, cfg config, dir string, r repoRef) (remote, bool) {
 	if x, ok := remoteFor(ctx, dir, r); ok {
 		return x, true
 	}
 	var found []remote
 	for _, x := range remotesOf(ctx, dir) {
-		if cfg.knownHost(x.Repo.Host) || x.Repo.Host == "github.com" {
-			continue // a real GitHub host, and not r's
+		if cfg.knownHost(x.Repo.Host) || theForge.isDefaultHost(x.Repo.Host) {
+			continue // a real host of this forge, and not r's
 		}
 		if strings.EqualFold(x.Repo.Owner, r.Owner) && strings.EqualFold(x.Repo.Name, r.Name) {
 			found = append(found, x)
@@ -220,8 +220,8 @@ func cloneDest(cfg config, r repoRef) string {
 	return filepath.Join(cfg.CloneRoot, r.Owner, r.Name)
 }
 
-// clone clones r into its place under clone_root with gh, which knows how
-// to authenticate for private repos and GitHub Enterprise.
+// clone clones r into its place under clone_root, by the forge's own CLI,
+// which knows how to authenticate for private repos.
 func clone(ctx context.Context, cfg config, r repoRef) (string, error) {
 	dest := cloneDest(cfg, r)
 	if _, err := os.Stat(dest); err == nil {
@@ -232,8 +232,8 @@ func clone(ctx context.Context, cfg config, r repoRef) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "gh", "repo", "clone", r.String(), dest)
-	cmd.Env = append(os.Environ(), "GH_HOST="+r.Host, "GIT_TERMINAL_PROMPT=0")
+	cmd := theForge.cloneCmd(ctx, r.Host, r, dest)
+	cmd.Env = append(cmd.Env, "GIT_TERMINAL_PROMPT=0")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		msg := strings.TrimSpace(string(out))
 		if msg == "" {

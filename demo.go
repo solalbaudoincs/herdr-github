@@ -378,7 +378,7 @@ func (d *demoSource) worktree(pr pullRequest, start bool) demoDoneMsg {
 		verb = "open the worktree on " + branch
 	}
 	if pr.IsCrossRepository {
-		verb += fmt.Sprintf(" (fetched from refs/pull/%d/head)", pr.Number)
+		verb += fmt.Sprintf(" (fetched from %s)", theForge.prHeadRef(pr.Number))
 	}
 	note := "Demo: would " + verb
 	if start && !d.trees[pr.key()] {
@@ -387,3 +387,5 @@ func (d *demoSource) worktree(pr pullRequest, start bool) demoDoneMsg {
 	d.trees[pr.key()] = true
 	return demoDoneMsg{note: strings.TrimSpace(note), key: pr.key()}
 }
+
+func (d *demoSource) caps() caps { return caps{reviewRequested: true, autoMerge: true} }

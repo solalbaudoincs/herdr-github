@@ -201,22 +201,18 @@ func parseLine(cfg config, line []byte) (note, bool) {
 	return n, n.number > 0
 }
 
-// prFromURL is the PR at https://host/owner/repo/pull/number, when that's a
-// host of ours and the number is the one given. Number 0: it isn't.
+// prFromURL is the PR the forge knows at that URL, when the host is one of
+// ours and the number is the one given. Number 0: it isn't.
 func prFromURL(cfg config, raw string, number int) (repoRef, int) {
 	u, err := url.Parse(raw)
 	if err != nil || u.Scheme != "https" || !cfg.knownHost(u.Hostname()) || number <= 0 {
 		return repoRef{}, 0
 	}
-	parts := strings.Split(strings.Trim(u.Path, "/"), "/")
-	if len(parts) != 4 || parts[2] != "pull" || parts[3] != strconv.Itoa(number) {
+	r, n, ok := theForge.prFromPath(u.Hostname(), u.Path, number)
+	if !ok {
 		return repoRef{}, 0
 	}
-	r := repoRef{Host: strings.ToLower(u.Hostname()), Owner: parts[0], Name: parts[1]}
-	if !r.valid() {
-		return repoRef{}, 0
-	}
-	return r, number
+	return r, n
 }
 
 // lineCwd is the working directory a transcript line was written in.
@@ -390,7 +386,7 @@ func (st *labelState) note(cfg config, t transcript, line []byte) {
 
 // numberLookupFn is GitHub, a seam for tests.
 var numberLookupFn = func(ctx context.Context, r repoRef, numbers []int) (map[int]prStatus, error) {
-	return newClient(r.Host).prsByNumber(ctx, r, numbers)
+	return theForge.api(r.Host).prsByNumber(ctx, r, numbers)
 }
 
 // refreshTracked asks GitHub how the tracked PRs are doing, a repo at a

@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"os/exec"
 	"sort"
 	"strconv"
 	"strings"
@@ -256,7 +255,10 @@ func (m model) settle() model {
 
 // loadAll asks for every tab at once, so switching tabs doesn't wait.
 func (m model) loadAll() tea.Cmd {
-	cmds := []tea.Cmd{m.loadTab(tabMine, ""), m.loadTab(tabReview, ""), m.loadAgents()}
+	cmds := []tea.Cmd{m.loadTab(tabMine, ""), m.loadAgents()}
+	if m.tabShown(tabReview) {
+		cmds = append(cmds, m.loadTab(tabReview, ""))
+	}
 	if m.repo != nil {
 		cmds = append(cmds, m.loadTab(tabRepo, ""))
 	}
@@ -477,7 +479,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case loginDoneMsg:
 		if msg.err != nil {
-			m.err = "gh auth login: " + msg.err.Error()
+			m.err = theForge.loginText + ": " + msg.err.Error()
 		}
 		return m.refreshAll()
 
@@ -521,9 +523,12 @@ func (m model) refreshAll() (model, tea.Cmd) {
 	m.gen++
 	m.prs, m.loaded, m.stale, m.paging, m.tabErr = map[tab][]pullRequest{}, map[tab]bool{}, map[tab]bool{}, map[tab]bool{}, map[tab]string{}
 	m.mode, m.err = modeLoading, ""
-	if gs, ok := m.client.(*githubSource); ok {
-		// A new sign-in means new tokens: start the clients afresh.
-		m.client = newGitHubSource(m.cfg, gs.repo)
+	// A new sign-in means new tokens: start the clients afresh.
+	switch c := m.client.(type) {
+	case *githubSource:
+		m.client = theForge.newSource(m.cfg, c.repo)
+	case *gitlabSource:
+		m.client = theForge.newSource(m.cfg, c.repo)
 	}
 	m = m.settle()
 	return m, tea.Batch(m.spin.Tick, m.loadAll())
@@ -614,9 +619,9 @@ func (m model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 		}
 		return m.leave()
 	case "tab", "shift+tab":
-		next := (m.tab + 1) % 3
+		next := m.cycleTab(1)
 		if k.String() == "shift+tab" {
-			next = (m.tab + 2) % 3
+			next = m.cycleTab(-1)
 		}
 		return m.switchTab(next)
 	case "left", "right":
@@ -625,9 +630,9 @@ func (m model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 			break
 		}
 		if k.String() == "right" {
-			return m.switchTab((m.tab + 1) % 3)
+			return m.switchTab(m.cycleTab(1))
 		}
-		return m.switchTab((m.tab + 2) % 3)
+		return m.switchTab(m.cycleTab(-1))
 	case "up", "ctrl+p", "ctrl+k":
 		m.move(-1)
 		return m, nil
@@ -685,6 +690,19 @@ func (m model) handleKey(k tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
+// cycleTab is the tab delta away: a forge without review-requested lists
+// has no Review tab to land on.
+func (m model) cycleTab(delta int) tab {
+	next := m.tab
+	for range 2 {
+		next = tab((int(next) + delta + 3) % 3)
+		if m.tabShown(next) {
+			return next
+		}
+	}
+	return m.tab
+}
+
 func (m model) switchTab(t tab) (tea.Model, tea.Cmd) {
 	m.tab, m.err, m.flash = t, "", ""
 	if !m.demo {
@@ -718,14 +736,14 @@ func (m model) reloadLists() (model, tea.Cmd) {
 	return m, tea.Batch(m.spin.Tick, m.loadAll())
 }
 
-// login runs `gh auth login` in the popup itself: it's a terminal, and gh's
-// prompts and browser hand-off work as they would anywhere else.
+// login runs the forge's sign-in in the popup itself: it's a terminal, and
+// the CLI's prompts and browser hand-off work as they would anywhere else.
 func (m model) login() tea.Cmd {
 	host := m.host
 	if host == "" {
-		host = "github.com"
+		host = theForge.defaultHost
 	}
-	return tea.ExecProcess(exec.Command("gh", "auth", "login", "--hostname", host, "--web"), func(err error) tea.Msg {
+	return tea.ExecProcess(theForge.loginCmd(host), func(err error) tea.Msg {
 		return loginDoneMsg{err}
 	})
 }
@@ -942,11 +960,11 @@ func (m model) view() string {
 	if m.mode == modeSignedOut {
 		host := m.host
 		if host == "" {
-			host = "github.com"
+			host = theForge.defaultHost
 		}
-		b.WriteString("\n  " + styleHeader.Render("GitHub isn't connected") + ": gh has no working sign-in for " + host + ".\n\n")
-		b.WriteString("  Press enter to run " + styleTabOn.Render("gh auth login") + " here; it opens your browser.\n")
-		b.WriteString(styleDim.Render("  The plugin uses gh's token and keeps none of its own.") + "\n")
+		b.WriteString("\n  " + styleHeader.Render(theForge.name+" isn't connected") + ": " + theForge.cliName + " has no working sign-in for " + host + ".\n\n")
+		b.WriteString("  Press enter to run " + styleTabOn.Render(theForge.loginText) + " here; it opens your browser.\n")
+		b.WriteString(styleDim.Render("  The plugin uses "+theForge.cliName+"'s token and keeps none of its own.") + "\n")
 		if m.err != "" {
 			b.WriteString("\n  " + styleErr.Render(shorten(clean(m.err, false), max(10, m.width-4))) + "\n")
 		}
@@ -1107,7 +1125,7 @@ func (m model) viewRow(r row, selected bool) []string {
 		name := "Pick a repo"
 		if m.repo != nil {
 			name = m.repo.String()
-			if m.repo.Host != "github.com" {
+			if !theForge.isDefaultHost(m.repo.Host) {
 				name = m.repo.Host + "/" + name
 			}
 			left += styleHeader.Render(name)
@@ -1163,7 +1181,7 @@ func (m model) repoName(pr pullRequest) string {
 	r := pr.repo()
 	for _, other := range m.prs[m.tab] {
 		if o := other.repo(); o.Name == r.Name && !o.same(r) {
-			if pr.Host != "github.com" && pr.Host != "" {
+			if pr.Host != "" && !theForge.isDefaultHost(pr.Host) {
 				return pr.Host + "/" + pr.Repository.NameWithOwner
 			}
 			return pr.Repository.NameWithOwner
@@ -1605,6 +1623,9 @@ func runPicker(ctx context.Context, cfg config, demo bool) error {
 	var client source
 	var repo *repoRef
 	if demo {
+		// The demo impersonates GitHub, whichever forge is configured.
+		useForge(githubForge)
+		cfg.Hosts = []string{githubForge.defaultHost}
 		d := newDemoSource()
 		home := d.homeRepo()
 		client, repo = d, &home
@@ -1617,12 +1638,12 @@ func runPicker(ctx context.Context, cfg config, demo bool) error {
 				}
 			}
 		}
-		client = newGitHubSource(cfg, repo)
+		client = theForge.newSource(cfg, repo)
 	}
 	m := newModel(ctx, cfg, client, invoked, repo)
 	if !demo {
 		// Open on the tab you were last on, showing last time's lists.
-		if t, ok := lastTab(); ok {
+		if t, ok := lastTab(); ok && m.tabShown(t) {
 			m.tab = t
 		}
 		m = m.useCache(readListCache(repo))

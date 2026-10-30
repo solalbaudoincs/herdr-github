@@ -131,13 +131,24 @@ func (m model) tabName(t tab, short bool) string {
 	return m.repo.Name
 }
 
+// tabShown says whether a tab is offered: a forge that can't list the PRs
+// waiting on your review has no Review tab.
+func (m model) tabShown(t tab) bool {
+	return t != tabReview || m.client.caps().reviewRequested
+}
+
 // tabBar is the popup's first line: the tabs, each with how many pull
 // requests it has (and a + while more are on their way), the one shown as a
 // pill, in line with the keys' pills along the bottom. The popup's name is
 // on its frame, which herdr draws. Too wide for the popup, the labels
 // shorten. On a PR's screen no tab is the one shown: they're the way back.
 func (m model) tabBar() (string, []tabCell) {
-	cells := []tabCell{{tab: tabMine}, {tab: tabReview}, {tab: tabRepo}}
+	var cells []tabCell
+	for _, t := range []tab{tabMine, tabReview, tabRepo} {
+		if m.tabShown(t) {
+			cells = append(cells, tabCell{tab: t})
+		}
+	}
 	var line string
 	for _, short := range []bool{false, true} {
 		line = " "
