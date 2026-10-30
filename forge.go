@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
 	"os/exec"
 	"strings"
 )
@@ -34,6 +35,11 @@ type forge struct {
 	cloneCmd func(ctx context.Context, host string, r repoRef, dest string) *exec.Cmd
 	// loginCmd is the command that signs you in to host, in the popup.
 	loginCmd func(host string) *exec.Cmd
+	// loginText is that command as it's said on the signed-out screen and
+	// prefixed to a sign-in error ("gh auth login"): what you'd run yourself.
+	loginText string
+	// cliName is the CLI itself, as the signed-out screen names it ("gh").
+	cliName string
 	// methodNames and methodVerbs spell this forge's merge methods: what
 	// its API calls them (the keys) and what each is called and said to do.
 	methodNames map[string]string
@@ -68,12 +74,14 @@ var githubForge = forge{
 	prHeadRef: func(number int) string { return fmt.Sprintf("refs/pull/%d/head", number) },
 	cloneCmd: func(ctx context.Context, host string, r repoRef, dest string) *exec.Cmd {
 		cmd := exec.CommandContext(ctx, "gh", "repo", "clone", r.String(), dest)
-		cmd.Env = append(cmd.Env, "GH_HOST="+host)
+		cmd.Env = append(os.Environ(), "GH_HOST="+host)
 		return cmd
 	},
 	loginCmd: func(host string) *exec.Cmd {
 		return exec.Command("gh", "auth", "login", "--hostname", host, "--web")
 	},
+	loginText:   "gh auth login",
+	cliName:     "gh",
 	methodNames: map[string]string{"MERGE": "Create a merge commit", "SQUASH": "Squash and merge", "REBASE": "Rebase and merge"},
 	methodVerbs: map[string]string{"MERGE": "Merge", "SQUASH": "Squash-merge", "REBASE": "Rebase-merge"},
 }

@@ -25,7 +25,7 @@ var errSignedOut = errors.New("not signed in to " + theForge.name)
 type signedOutError struct{ Host string }
 
 func (e *signedOutError) Error() string {
-	return "not signed in to " + e.Host + ": run `gh auth login --hostname " + e.Host + "`"
+	return "not signed in to " + e.Host + ": run `" + theForge.loginText + " --hostname " + e.Host + "`"
 }
 func (e *signedOutError) Unwrap() error { return errSignedOut }
 

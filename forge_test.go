@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"strings"
 	"testing"
 )
 
@@ -35,4 +37,27 @@ func TestIsDefaultHost(t *testing.T) {
 	if !theForge.isDefaultHost("GitHub.com") || theForge.isDefaultHost("ghe.example.com") || theForge.isDefaultHost("") {
 		t.Fatal("isDefaultHost")
 	}
+}
+
+// A clone runs with the environment this process has, plus the forge's own
+// additions: gh needs PATH, HOME and any GH_* token to work at all.
+func TestCloneCmdInheritsTheEnvironment(t *testing.T) {
+	cmd := theForge.cloneCmd(context.Background(), "github.com", repoRef{"github.com", "o", "r"}, "/tmp/dest")
+	for _, want := range []string{"PATH=", "HOME="} {
+		found := false
+		for _, kv := range cmd.Env {
+			if strings.HasPrefix(kv, want) {
+				found = true
+			}
+		}
+		if !found {
+			t.Errorf("cloneCmd's Env lacks %s: %v", want, cmd.Env)
+		}
+	}
+	for _, kv := range cmd.Env {
+		if kv == "GH_HOST=github.com" {
+			return
+		}
+	}
+	t.Errorf("cloneCmd's Env lacks GH_HOST: %v", cmd.Env)
 }

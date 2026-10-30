@@ -476,7 +476,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case loginDoneMsg:
 		if msg.err != nil {
-			m.err = theForge.name + " sign-in: " + msg.err.Error()
+			m.err = theForge.loginText + ": " + msg.err.Error()
 		}
 		return m.refreshAll()
 
@@ -956,9 +956,9 @@ func (m model) view() string {
 		if host == "" {
 			host = theForge.defaultHost
 		}
-		b.WriteString("\n  " + styleHeader.Render(theForge.name+" isn't connected") + ": no working sign-in for " + host + ".\n\n")
-		b.WriteString("  Press enter to run " + styleTabOn.Render(theForge.name+" sign-in") + " here; it opens your browser.\n")
-		b.WriteString(styleDim.Render("  The plugin uses its CLI's sign-in and keeps no token of its own.") + "\n")
+		b.WriteString("\n  " + styleHeader.Render(theForge.name+" isn't connected") + ": " + theForge.cliName + " has no working sign-in for " + host + ".\n\n")
+		b.WriteString("  Press enter to run " + styleTabOn.Render(theForge.loginText) + " here; it opens your browser.\n")
+		b.WriteString(styleDim.Render("  The plugin uses "+theForge.cliName+"'s token and keeps none of its own.") + "\n")
 		if m.err != "" {
 			b.WriteString("\n  " + styleErr.Render(shorten(clean(m.err, false), max(10, m.width-4))) + "\n")
 		}
