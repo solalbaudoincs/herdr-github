@@ -196,7 +196,7 @@ func (m model) repoMenu() *menu {
 		g, ok := groups[k]
 		if !ok {
 			name := e.repo.Owner
-			if e.repo.Host != "github.com" {
+			if !theForge.isDefaultHost(e.repo.Host) {
 				name = e.repo.Host + "/" + name
 			}
 			g = &group{name: name, rank: -1}

@@ -220,8 +220,8 @@ func cloneDest(cfg config, r repoRef) string {
 	return filepath.Join(cfg.CloneRoot, r.Owner, r.Name)
 }
 
-// clone clones r into its place under clone_root with gh, which knows how
-// to authenticate for private repos and GitHub Enterprise.
+// clone clones r into its place under clone_root, by the forge's own CLI,
+// which knows how to authenticate for private repos.
 func clone(ctx context.Context, cfg config, r repoRef) (string, error) {
 	dest := cloneDest(cfg, r)
 	if _, err := os.Stat(dest); err == nil {
@@ -232,8 +232,8 @@ func clone(ctx context.Context, cfg config, r repoRef) (string, error) {
 	}
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Minute)
 	defer cancel()
-	cmd := exec.CommandContext(ctx, "gh", "repo", "clone", r.String(), dest)
-	cmd.Env = append(os.Environ(), "GH_HOST="+r.Host, "GIT_TERMINAL_PROMPT=0")
+	cmd := theForge.cloneCmd(ctx, r.Host, r, dest)
+	cmd.Env = append(cmd.Env, "GIT_TERMINAL_PROMPT=0")
 	if out, err := cmd.CombinedOutput(); err != nil {
 		msg := strings.TrimSpace(string(out))
 		if msg == "" {

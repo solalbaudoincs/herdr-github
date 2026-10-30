@@ -39,6 +39,18 @@ type source interface {
 	// repos pages through the repos you can reach, for the repo list:
 	// the first page with cursor "", then each page's next until it's "".
 	repos(ctx context.Context, cursor string) ([]repoInfo, string, error)
+	// caps says which tabs and actions this forge's PRs offer: a forge
+	// without review-requested lists doesn't show that tab, one without
+	// auto-merge doesn't offer it.
+	caps() caps
+}
+
+// caps is what a source's PRs support. The demo answers for its forge too:
+// a forge to come (GitLab, say) without one of these turns its tab or key
+// off, and everything else keeps working.
+type caps struct {
+	reviewRequested bool // the Review tab: PRs waiting on your review
+	autoMerge        bool // merging once checks and reviews allow
 }
 
 // githubSource talks to every configured host, one client per host.
@@ -211,3 +223,5 @@ func (s *githubSource) repos(ctx context.Context, cursor string) ([]repoInfo, st
 	}
 	return rs, next, err
 }
+
+func (s *githubSource) caps() caps { return caps{reviewRequested: true, autoMerge: true} }

@@ -150,7 +150,7 @@ func openWorktree(ctx context.Context, cfg config, pr pullRequest, dir string) (
 	// fork's PR, never into a local branch that might hold your work.
 	src, dst := "refs/heads/"+pr.HeadRefName, "refs/remotes/"+rem.Name+"/"+pr.HeadRefName
 	if pr.IsCrossRepository {
-		src, dst = fmt.Sprintf("refs/pull/%d/head", pr.Number), fmt.Sprintf("refs/remotes/%s/pr/%d", rem.Name, pr.Number)
+		src, dst = theForge.prHeadRef(pr.Number), fmt.Sprintf("refs/remotes/%s/pr/%d", rem.Name, pr.Number)
 	}
 	fctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	_, fetchErr := git(fctx, dir, "fetch", "--quiet", "--no-tags", rem.Name, "+"+src+":"+dst)

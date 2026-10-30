@@ -259,9 +259,9 @@ func (s repoSettings) methods() []string {
 
 // ── client ────────────────────────────────────────────────────────────────────
 
-// tokenFn finds the token for a host; a seam for tests. gh's own environment
-// variables win, as they do for gh.
-var tokenFn = ghToken
+// tokenFn finds the token for a host; a seam for tests. The forge's own
+// environment variables win, as they do for its CLI.
+var tokenFn = theForge.token
 
 func ghToken(ctx context.Context, host string) (string, error) {
 	vars := []string{"GH_ENTERPRISE_TOKEN", "GITHUB_ENTERPRISE_TOKEN"}
