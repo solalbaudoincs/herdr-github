@@ -49,8 +49,8 @@ func parseRemote(raw string) (repoRef, bool) {
 		return repoRef{}, false
 	}
 	path = strings.TrimSuffix(strings.Trim(path, "/"), ".git")
-	owner, name, ok := strings.Cut(path, "/")
-	if !ok || owner == "" || name == "" || strings.Contains(name, "/") {
+	owner, name, ok := splitRepoPath(path, theForge.nestedPaths)
+	if !ok {
 		return repoRef{}, false
 	}
 	return repoRef{Host: strings.ToLower(host), Owner: owner, Name: name}, true

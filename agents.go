@@ -386,7 +386,7 @@ func (st *labelState) note(cfg config, t transcript, line []byte) {
 
 // numberLookupFn is GitHub, a seam for tests.
 var numberLookupFn = func(ctx context.Context, r repoRef, numbers []int) (map[int]prStatus, error) {
-	return newClient(r.Host).prsByNumber(ctx, r, numbers)
+	return theForge.api(r.Host).prsByNumber(ctx, r, numbers)
 }
 
 // refreshTracked asks GitHub how the tracked PRs are doing, a repo at a

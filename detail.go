@@ -247,7 +247,7 @@ func readiness(d *prDetail) (text string, style lipgloss.Style) {
 			s = "Blocked by the branch's rules"
 		}
 	default:
-		s, style = "GitHub is still working out whether it can merge (ctrl+r)", styleDim
+		s, style = theForge.name+" is still working out whether it can merge (ctrl+r)", styleDim
 	}
 	if !d.ViewerCanMerge {
 		s += " · you can't merge in this repo"
@@ -436,7 +436,7 @@ func (m model) cleanupMenu(d *prDetail) *menu {
 		mn.items = append(mn.items, run("Delete the branch and remove the worktree", true, true))
 	}
 	if canDelete {
-		mn.items = append(mn.items, run("Delete the branch "+d.HeadRefName+" on GitHub", true, false))
+		mn.items = append(mn.items, run("Delete the branch "+d.HeadRefName+" on "+theForge.name, true, false))
 	}
 	if hasTree {
 		mn.items = append(mn.items, run("Remove the worktree (and close its space)", false, true))
@@ -455,7 +455,7 @@ func (m *model) openURL(u string) {
 		return
 	}
 	if !m.isGitHubURL(u) {
-		m.err = "Not opening " + u + ": not a link to your GitHub"
+		m.err = "Not opening " + u + ": not a link to your " + theForge.name
 		return
 	}
 	// A browser here wouldn't be in front of you (over SSH), or there's none

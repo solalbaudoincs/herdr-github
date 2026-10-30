@@ -298,7 +298,7 @@ func spaceBranchOf(ctx context.Context, cfg config, w workspaceInfo) (spaceBranc
 // Seams for tests.
 var (
 	branchLookupFn = func(ctx context.Context, r repoRef, heads []branchHead) (map[branchHead]prStatus, error) {
-		return newClient(r.Host).prsForBranches(ctx, r, heads)
+		return theForge.api(r.Host).prsForBranches(ctx, r, heads)
 	}
 	nowFn = time.Now
 )
